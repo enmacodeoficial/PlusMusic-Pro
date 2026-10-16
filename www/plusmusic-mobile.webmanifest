@@ -1,0 +1,27 @@
+{
+  "id": "./index.html",
+  "name": "PlusMusic Pro",
+  "short_name": "PlusMusic",
+  "description": "Reproductor de música personalizable PlusMusic Pro.",
+  "lang": "es",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#080908",
+  "theme_color": "#1DB954",
+  "icons": [
+    {
+      "src": "./plusmusic-mobile-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./plusmusic-mobile-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
