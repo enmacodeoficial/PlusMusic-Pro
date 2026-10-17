@@ -1,4 +1,3 @@
-java
 package com.plusmusic.app;
 
 import android.content.Context;
@@ -24,7 +23,9 @@ import com.getcapacitor.JSObject;
 
 import java.io.File;
 
-/** Real Android media player: ExoPlayer + MediaSession live outside the WebView lifecycle. */
+/**
+ * Reproductor Android real: ExoPlayer + MediaSession vivos fuera del ciclo de vida de WebView.
+ */
 @UnstableApi
 public class PlusMusicPlaybackService extends MediaSessionService {
     public static final String ACTION_PLAY = "com.plusmusic.app.PLAYBACK.PLAY";
@@ -84,15 +85,12 @@ public class PlusMusicPlaybackService extends MediaSessionService {
         player.setHandleAudioBecomingNoisy(true);
         player.setWakeMode(C.WAKE_MODE_LOCAL);
         player.setVolume(effectiveVolume());
-        player.setPlaybackParameters(
-            new PlaybackParameters(playbackRate, 1f)
-        );
+        player.setPlaybackParameters(new PlaybackParameters(playbackRate, 1f));
 
         player.addListener(new Player.Listener() {
             @Override
             public void onPlaybackStateChanged(int state) {
-                if (state == Player.STATE_READY
-                        || state == Player.STATE_BUFFERING) {
+                if (state == Player.STATE_READY || state == Player.STATE_BUFFERING) {
                     attachOrUpdateEqualizer();
                 }
             }
@@ -116,7 +114,7 @@ public class PlusMusicPlaybackService extends MediaSessionService {
 
             @Override
             public void onPlayerError(PlaybackException error) {
-                lastError = error.getMessage() == null
+                lastError = error == null || error.getMessage() == null
                     ? "error de reproducción"
                     : error.getMessage();
 
@@ -129,11 +127,11 @@ public class PlusMusicPlaybackService extends MediaSessionService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        int result = super.onStartCommand(intent, flags, startId);
-
         if (intent == null || player == null) {
-            return result;
+            return START_NOT_STICKY;
         }
+
+        int result = super.onStartCommand(intent, flags, startId);
 
         String action = intent.getAction();
 
@@ -162,46 +160,31 @@ public class PlusMusicPlaybackService extends MediaSessionService {
     }
 
     private void playFromIntent(Intent intent) {
-        String trackId = intent.getStringExtra(EXTRA_TRACK_ID);
-        String url = intent.getStringExtra(EXTRA_URL);
+        if (intent == null) {
+            throw new IllegalArgumentException("Intent nulo");
+        }
 
-        String title = value(
-            intent.getStringExtra(EXTRA_TITLE), "PlusMusic"
-        );
-        String artist = value(
-            intent.getStringExtra(EXTRA_ARTIST), "Artista desconocido"
-        );
-        String album = value(
-            intent.getStringExtra(EXTRA_ALBUM), "PlusMusic"
-        );
+        String trackId = value(intent.getStringExtra(EXTRA_TRACK_ID), "");
+        String url = value(intent.getStringExtra(EXTRA_URL), "");
 
+        String title = value(intent.getStringExtra(EXTRA_TITLE), "PlusMusic");
+        String artist = value(intent.getStringExtra(EXTRA_ARTIST), "Artista desconocido");
+        String album = value(intent.getStringExtra(EXTRA_ALBUM), "PlusMusic");
         String cover = intent.getStringExtra(EXTRA_COVER);
 
-        long position = Math.max(
-            0L, intent.getLongExtra(EXTRA_POSITION, 0L)
-        );
+        long position = Math.max(0L, intent.getLongExtra(EXTRA_POSITION, 0L));
 
-        userVolume = clamp(
-            intent.getFloatExtra(EXTRA_VOLUME, userVolume), 0f, 1f
-        );
-        playbackRate = clamp(
-            intent.getFloatExtra(EXTRA_SPEED, playbackRate), 0.5f, 2f
-        );
+        userVolume = clamp(intent.getFloatExtra(EXTRA_VOLUME, userVolume), 0f, 1f);
+        playbackRate = clamp(intent.getFloatExtra(EXTRA_SPEED, playbackRate), 0.5f, 2f);
 
         player.setVolume(effectiveVolume());
-        player.setPlaybackParameters(
-            new PlaybackParameters(playbackRate, 1f)
-        );
+        player.setPlaybackParameters(new PlaybackParameters(playbackRate, 1f));
 
         Uri mediaUri;
 
         if (!TextUtils.isEmpty(trackId)) {
-            File audioDir = new File(
-                getFilesDir(), "plusmusic-audio"
-            );
-
-            String safeId = trackId.trim()
-                .replaceAll("[^A-Za-z0-9_-]", "_");
+            File audioDir = new File(getFilesDir(), "plusmusic-audio");
+            String safeId = trackId.trim().replaceAll("[^A-Za-z0-9_-]", "_");
 
             if (safeId.length() > 120) {
                 safeId = safeId.substring(0, 120);
@@ -210,22 +193,16 @@ public class PlusMusicPlaybackService extends MediaSessionService {
             File file = new File(audioDir, safeId + ".audio");
 
             if (!file.isFile() || file.length() == 0) {
-                throw new IllegalStateException(
-                    "No se encontró el archivo local " + safeId
-                );
+                throw new IllegalStateException("No se encontró el archivo local " + safeId);
             }
 
             mediaUri = Uri.fromFile(file);
             currentTrackId = trackId;
-
         } else if (!TextUtils.isEmpty(url)) {
             mediaUri = Uri.parse(url);
             currentTrackId = "";
-
         } else {
-            throw new IllegalArgumentException(
-                "No se recibió ninguna fuente de audio"
-            );
+            throw new IllegalArgumentException("No se recibió ninguna fuente de audio");
         }
 
         MediaMetadata.Builder metadata = new MediaMetadata.Builder()
@@ -241,11 +218,7 @@ public class PlusMusicPlaybackService extends MediaSessionService {
         }
 
         MediaItem item = new MediaItem.Builder()
-            .setMediaId(
-                TextUtils.isEmpty(trackId)
-                    ? mediaUri.toString()
-                    : trackId
-            )
+            .setMediaId(TextUtils.isEmpty(trackId) ? mediaUri.toString() : trackId)
             .setUri(mediaUri)
             .setMediaMetadata(metadata.build())
             .build();
@@ -263,33 +236,20 @@ public class PlusMusicPlaybackService extends MediaSessionService {
         android.content.SharedPreferences prefs =
             getSharedPreferences(PREFS, Context.MODE_PRIVATE);
 
-        userVolume = clamp(
-            prefs.getFloat("volume", 0.8f), 0f, 1f
-        );
-        playbackRate = clamp(
-            prefs.getFloat("speed", 1f), 0.5f, 2f
-        );
+        userVolume = clamp(prefs.getFloat("volume", 0.8f), 0f, 1f);
+        playbackRate = clamp(prefs.getFloat("speed", 1f), 0.5f, 2f);
 
         eqEnabled = prefs.getBoolean("eq_enabled", true);
-        eqPreamp = clamp(
-            prefs.getFloat("eq_preamp", 0f), -6f, 6f
-        );
+        eqPreamp = clamp(prefs.getFloat("eq_preamp", 0f), -6f, 6f);
 
         for (int i = 0; i < eqBands.length; i++) {
-            eqBands[i] = clamp(
-                prefs.getFloat("eq_band_" + i, 0f), -12f, 12f
-            );
+            eqBands[i] = clamp(prefs.getFloat("eq_band_" + i, 0f), -12f, 12f);
         }
     }
 
     private float effectiveVolume() {
-        double preamp = Math.pow(
-            10d, eqEnabled ? eqPreamp / 20d : 0d
-        );
-
-        return (float) Math.max(
-            0d, Math.min(1d, userVolume * preamp)
-        );
+        double preamp = Math.pow(10d, eqEnabled ? eqPreamp / 20d : 0d);
+        return (float) Math.max(0d, Math.min(1d, userVolume * preamp));
     }
 
     private void attachOrUpdateEqualizer() {
@@ -304,8 +264,7 @@ public class PlusMusicPlaybackService extends MediaSessionService {
                 return;
             }
 
-            if (equalizer == null
-                    || equalizerSessionId != sessionId) {
+            if (equalizer == null || equalizerSessionId != sessionId) {
                 releaseEqualizer();
 
                 equalizer = new Equalizer(0, sessionId);
@@ -315,19 +274,21 @@ public class PlusMusicPlaybackService extends MediaSessionService {
             short[] range = equalizer.getBandLevelRange();
             short count = equalizer.getNumberOfBands();
 
-            for (short nativeBand = 0;
-                    nativeBand < count;
-                    nativeBand++) {
+            if (range == null || range.length < 2 || count <= 0) {
+                equalizer.setEnabled(eqEnabled);
+                player.setVolume(effectiveVolume());
+                return;
+            }
 
-                int[] hzRange =
-                    equalizer.getBandFreqRange(nativeBand);
+            for (short nativeBand = 0; nativeBand < count; nativeBand++) {
+                int[] hzRange = equalizer.getBandFreqRange(nativeBand);
 
-                double low = Math.max(
-                    1d, hzRange[0] / 1000d
-                );
-                double high = Math.max(
-                    low, hzRange[1] / 1000d
-                );
+                if (hzRange == null || hzRange.length < 2) {
+                    continue;
+                }
+
+                double low = Math.max(1d, hzRange[0] / 1000d);
+                double high = Math.max(low, hzRange[1] / 1000d);
 
                 float centre = (float) Math.sqrt(low * high);
 
@@ -335,40 +296,24 @@ public class PlusMusicPlaybackService extends MediaSessionService {
                 double nearestDistance = Double.MAX_VALUE;
 
                 for (int i = 0; i < EQ_FREQS.length; i++) {
-                    double distance = Math.abs(
-                        Math.log(centre / EQ_FREQS[i])
-                    );
-
+                    double distance = Math.abs(Math.log(centre / EQ_FREQS[i]));
                     if (distance < nearestDistance) {
                         nearestDistance = distance;
                         nearest = i;
                     }
                 }
 
-                int targetMillibels = Math.round(
-                    eqEnabled ? eqBands[nearest] * 100f : 0f
-                );
+                int targetMillibels = Math.round((eqEnabled ? eqBands[nearest] : 0f) * 100f);
+                targetMillibels = Math.max(range[0], Math.min(range[1], targetMillibels));
 
-                targetMillibels = Math.max(
-                    range[0],
-                    Math.min(range[1], targetMillibels)
-                );
-
-                equalizer.setBandLevel(
-                    nativeBand, (short) targetMillibels
-                );
+                equalizer.setBandLevel(nativeBand, (short) targetMillibels);
             }
 
             equalizer.setEnabled(eqEnabled);
             player.setVolume(effectiveVolume());
 
         } catch (Throwable e) {
-            Log.w(
-                TAG,
-                "El ecualizador nativo no está disponible en este dispositivo",
-                e
-            );
-
+            Log.w(TAG, "El ecualizador nativo no está disponible en este dispositivo", e);
             releaseEqualizer();
         }
     }
@@ -416,15 +361,11 @@ public class PlusMusicPlaybackService extends MediaSessionService {
 
         if (s != null && s.player != null) {
             s.playbackRate = clamp(rate, 0.5f, 2f);
-
-            s.player.setPlaybackParameters(
-                new PlaybackParameters(s.playbackRate, 1f)
-            );
+            s.player.setPlaybackParameters(new PlaybackParameters(s.playbackRate, 1f));
         }
     }
 
-    public static void setEqualizerSettings(
-            boolean enabled, float preamp, float[] bands) {
+    public static void setEqualizerSettings(boolean enabled, float preamp, float[] bands) {
         PlusMusicPlaybackService s = instance;
 
         if (s == null) {
@@ -435,12 +376,8 @@ public class PlusMusicPlaybackService extends MediaSessionService {
         s.eqPreamp = clamp(preamp, -6f, 6f);
 
         if (bands != null) {
-            for (int i = 0;
-                    i < Math.min(bands.length, s.eqBands.length);
-                    i++) {
-                s.eqBands[i] = clamp(
-                    bands[i], -12f, 12f
-                );
+            for (int i = 0; i < Math.min(bands.length, s.eqBands.length); i++) {
+                s.eqBands[i] = clamp(bands[i], -12f, 12f);
             }
         }
 
@@ -467,7 +404,6 @@ public class PlusMusicPlaybackService extends MediaSessionService {
             result.put("trackId", "");
             result.put("error", "");
             result.put("equalizerApplied", false);
-
             return result;
         }
 
@@ -482,22 +418,11 @@ public class PlusMusicPlaybackService extends MediaSessionService {
         long duration = s.player.getDuration();
 
         result.put("isPlaying", s.player.isPlaying());
-        result.put(
-            "position",
-            Math.max(0L, s.player.getCurrentPosition())
-        );
-        result.put(
-            "duration",
-            duration < 0 || duration == C.TIME_UNSET
-                ? 0L
-                : duration
-        );
+        result.put("position", Math.max(0L, s.player.getCurrentPosition()));
+        result.put("duration", duration < 0 || duration == C.TIME_UNSET ? 0L : duration);
         result.put("state", stateName);
-        result.put(
-            "trackId",
-            s.player.getCurrentMediaItem() == null
-                ? ""
-                : s.player.getCurrentMediaItem().mediaId
+        result.put("trackId",
+            s.player.getCurrentMediaItem() == null ? "" : s.player.getCurrentMediaItem().mediaId
         );
         result.put("error", s.lastError);
         result.put("equalizerApplied", isEqualizerApplied());
@@ -505,21 +430,18 @@ public class PlusMusicPlaybackService extends MediaSessionService {
         return result;
     }
 
-    private static float clamp(
-            float value, float min, float max) {
+    private static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
     }
 
-    private static String value(
-            String input, String fallback) {
+    private static String value(String input, String fallback) {
         return input == null || input.trim().isEmpty()
             ? fallback
             : input.trim();
     }
 
     @Override
-    public MediaSession onGetSession(
-            MediaSession.ControllerInfo controllerInfo) {
+    public MediaSession onGetSession(MediaSession.ControllerInfo controllerInfo) {
         return mediaSession;
     }
 
@@ -532,7 +454,10 @@ public class PlusMusicPlaybackService extends MediaSessionService {
             mediaSession = null;
         }
 
-        player = null;
+        if (player != null) {
+            player.release();
+            player = null;
+        }
 
         if (instance == this) {
             instance = null;
