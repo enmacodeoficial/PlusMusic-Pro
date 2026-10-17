@@ -1,4 +1,4 @@
-```java
+java
 package com.plusmusic.app;
 
 import android.content.Context;
@@ -541,4 +541,3 @@ public class PlusMusicPlaybackService extends MediaSessionService {
         super.onDestroy();
     }
 }
-```
